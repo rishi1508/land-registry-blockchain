@@ -2,7 +2,7 @@
 
 ## Live Demo
 
-- **URL**: https://rishi1508.github.io/Final-Year-Project
+- **URL**: https://rishi1508.github.io/land-registry-blockchain
 - **Requirements**:
   - Modern browser (Chrome, Firefox, etc.).
   - MetaMask extension on Sepolia testnet.
@@ -10,7 +10,7 @@
 
 ## Running Locally
 
-1. **Clone**: `git clone https://github.com/rishi1508/land-registry-blockchain.git`
+1. **Clone**: `git clone https://github.com/rishi1508/land-registry-blockchain.git && cd land-registry-blockchain`
 2. **Install**: `cd landregistration/front-end && npm install`
 3. **Run**: `npm start`
 4. **Requirements**:
