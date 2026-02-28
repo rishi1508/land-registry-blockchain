@@ -1,14 +1,13 @@
 {
   "files": {
-    "main.css": "/Final-Year-Project/static/css/main.06fb3d31.css",
-    "main.js": "/Final-Year-Project/static/js/main.f23ecd91.js",
-    "static/media/background-image.png": "/Final-Year-Project/static/media/background-image.21ca597059f04ed34539.png",
-    "index.html": "/Final-Year-Project/index.html",
-    "main.06fb3d31.css.map": "/Final-Year-Project/static/css/main.06fb3d31.css.map",
-    "main.f23ecd91.js.map": "/Final-Year-Project/static/js/main.f23ecd91.js.map"
+    "main.css": "/land-registry-blockchain/static/css/main.14ebe18a.css",
+    "main.js": "/land-registry-blockchain/static/js/main.2dd15637.js",
+    "index.html": "/land-registry-blockchain/index.html",
+    "main.14ebe18a.css.map": "/land-registry-blockchain/static/css/main.14ebe18a.css.map",
+    "main.2dd15637.js.map": "/land-registry-blockchain/static/js/main.2dd15637.js.map"
   },
   "entrypoints": [
-    "static/css/main.06fb3d31.css",
-    "static/js/main.f23ecd91.js"
+    "static/css/main.14ebe18a.css",
+    "static/js/main.2dd15637.js"
   ]
 }
