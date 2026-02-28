@@ -1,338 +1,207 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import '../styles.css';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { WalletContext } from './WalletContext';
-import ConfirmationDialog from './ConfirmationDialog';
-import config from '../config'; // Import config
+import config from '../config';
 
-// Use admin address from config
 const ADMIN_ADDRESS = config.ADMIN_ADDRESS;
 
 const AdminPanel = () => {
   const { isConnected, contract, account, connectWallet } = useContext(WalletContext);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminError, setAdminError] = useState('');
   const [allLands, setAllLands] = useState([]);
   const [pastOwners, setPastOwners] = useState([]);
   const [landIdForHistory, setLandIdForHistory] = useState('');
-  const [activeSection, setActiveSection] = useState(null);
-  const [showDialog, setShowDialog] = useState(false);
+  const [activeSection, setActiveSection] = useState('show');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const checkAdminStatus = useCallback(() => {
     if (!account) return;
-    
-    // Check if the current account matches the admin address (case-insensitive comparison)
     const isAdminAccount = account.toLowerCase() === ADMIN_ADDRESS.toLowerCase();
-    console.log('Current account:', account);
-    console.log('Admin address:', ADMIN_ADDRESS);
-    console.log('Is admin:', isAdminAccount);
-    
     setIsAdmin(isAdminAccount);
-    setAdminError(isAdminAccount ? '' : 'This account does not have administrator privileges.');
   }, [account]);
 
   useEffect(() => {
-    if (isConnected && account) {
-      checkAdminStatus();
-    }
+    if (isConnected && account) checkAdminStatus();
   }, [isConnected, account, checkAdminStatus]);
 
   const fetchAllLands = useCallback(async () => {
+    if (!contract || !isAdmin) return;
     setIsLoading(true);
-    console.log('fetchAllLands called');
-    console.log('Contract:', !!contract);
-    console.log('isAdmin:', isAdmin);
-    
-    if (!contract) {
-      console.log('Cannot fetch lands: contract missing');
-      setAdminError('Cannot fetch lands: Contract missing.');
-      setIsLoading(false);
-      return;
-    }
-    
-    if (!isAdmin) {
-      console.log('User is not admin. Current account:', account);
-      console.log('Expected admin address:', ADMIN_ADDRESS);
-      setAdminError('Only admin can perform this action. Please connect with the admin account.');
-      setIsLoading(false);
-      return;
-    }
-    
+    setError('');
     try {
-      console.log('Fetching all lands from contract at:', contract._address);
-      const landCount = await contract.methods.landCount().call();
-      console.log('Land count:', landCount);
-      
-      // Only proceed if the account is admin
-      const allLands = await contract.methods.getAllLands().call({ from: account });
-      console.log('Lands fetched:', allLands);
-      setAllLands(allLands);
-      
-      if (allLands.length === 0) {
-        setAdminError('No lands registered on the contract yet.');
-      } else {
-        setAdminError('');
-      }
-    } catch (error) {
-      console.error('Error fetching all lands:', error);
-      let errorMsg = error.message || 'Unknown error';
-      if (error.data && error.data.message) {
-        errorMsg = error.data.message;
-      }
-      setAdminError('Failed to fetch lands: ' + errorMsg);
+      const allLandsData = await contract.methods.getAllLands().call({ from: account });
+      setAllLands(allLandsData);
+      if (allLandsData.length === 0) setError('No lands registered yet.');
+    } catch (err) {
+      console.error('Error fetching lands:', err);
+      setError('Failed to fetch lands: ' + (err.message || 'Unknown error'));
     } finally {
       setIsLoading(false);
     }
   }, [contract, isAdmin, account]);
 
   const fetchPastOwners = useCallback(async () => {
-    if (!landIdForHistory) {
-      alert('Please enter a Land ID');
-      return;
-    }
-    
+    if (!landIdForHistory || !contract || !isAdmin) return;
     setIsLoading(true);
-    console.log('fetchPastOwners called');
-    console.log('Contract:', !!contract);
-    console.log('isAdmin:', isAdmin);
-    console.log('Land ID:', landIdForHistory);
-    
-    if (!contract) {
-      console.log('Cannot fetch history: missing contract');
-      alert('Cannot fetch history: Missing contract connection.');
-      setIsLoading(false);
-      return;
-    }
-    
-    if (!isAdmin) {
-      console.log('User is not admin. Current account:', account);
-      console.log('Expected admin address:', ADMIN_ADDRESS);
-      alert('Only admin can perform this action. Please connect with the admin account.');
-      setIsLoading(false);
-      return;
-    }
-    
+    setError('');
     try {
-      console.log('Checking if Land ID exists:', landIdForHistory);
       const land = await contract.methods.lands(landIdForHistory).call();
-      console.log('Land details:', land);
-      
-      if (land.id === '0') {
-        alert('Land ID does not exist');
+      if (land.id === '0' || land.owner === '0x0000000000000000000000000000000000000000') {
+        setError('Land ID does not exist.');
         setIsLoading(false);
         return;
       }
-      
-      console.log('Fetching past ownership for Land ID:', landIdForHistory);
       const history = await contract.methods.getPastOwnershipDetails(landIdForHistory).call({ from: account });
-      console.log('History fetched:', history);
-      
-      // Convert BigInt values to regular numbers to avoid type mixing issues
-      const processedHistory = history.map(item => ({
-        owner: item.owner,
-        // Convert BigInt timestamp to Number to avoid type mixing
-        timestamp: Number(item.timestamp)
-      }));
-      
-      setPastOwners(processedHistory);
-      
-      if (processedHistory.length === 0) {
-        alert('No ownership history found for Land ID ' + landIdForHistory);
-      }
-    } catch (error) {
-      console.error('Error fetching past owners:', error);
-      let errorMsg = error.message || 'Unknown error';
-      if (error.data && error.data.message) {
-        errorMsg = error.data.message;
-      }
-      alert('Failed to fetch past ownership details: ' + errorMsg);
+      setPastOwners(history.map(item => ({ owner: item.owner, timestamp: Number(item.timestamp) })));
+    } catch (err) {
+      console.error('Error fetching history:', err);
+      setError('Failed to fetch ownership history.');
     } finally {
       setIsLoading(false);
     }
   }, [contract, isAdmin, landIdForHistory, account]);
 
-  const toggleSection = (section) => {
-    setActiveSection(activeSection === section ? null : section);
-    setPastOwners([]);
-    setLandIdForHistory('');
-    setAllLands([]);
-    setAdminError('');
-  };
-
   return (
     <div>
       <Navbar />
-      <div className="container my-5 pt-5">
-        <h1 className="text-center mb-4 fade-in">Admin Panel</h1>
-        {!isConnected || !isAdmin ? (
-          <div className="row justify-content-center">
-            <div className="col-md-6">
-              <div className="card text-center">
-                <div className="card-body">
-                  <h5 className="card-title">Kindly login with an account with administrator privileges</h5>
-                  {!isConnected ? (
-                    <button
-                      onClick={connectWallet}
-                      className="btn btn-primary mt-3"
-                      aria-label="Connect Wallet"
-                    >
-                      Connect
+      <div className="page-wrapper">
+        <div className="page-container">
+          <div className="page-header">
+            <h1 className="page-title">Admin Panel</h1>
+            <p className="page-description">Administrative tools for managing the land registry</p>
+          </div>
+
+          {!isConnected || !isAdmin ? (
+            <div className="empty-state">
+              <div className="empty-icon">&#128272;</div>
+              <div className="empty-title">Administrator Access Required</div>
+              <p className="empty-desc">
+                {!isConnected
+                  ? 'Connect your wallet to access the admin panel.'
+                  : `Connected: ${config.shortenAddress(account)} - This is not the admin account.`}
+              </p>
+              {!isConnected ? (
+                <button className="btn-gradient" onClick={connectWallet} style={{ marginTop: '1rem' }}>Connect Wallet</button>
+              ) : (
+                <div style={{ marginTop: '1rem' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 8 }}>Admin address:</div>
+                  <div className="address-badge">{ADMIN_ADDRESS}</div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="alert-dark alert-success-dark">
+                <span>&#10003;</span> Connected as Admin: {config.shortenAddress(account)}
+              </div>
+
+              <div className="section-tabs">
+                <button className={`section-tab ${activeSection === 'show' ? 'active' : ''}`} onClick={() => { setActiveSection('show'); setError(''); }}>
+                  All Lands
+                </button>
+                <button className={`section-tab ${activeSection === 'history' ? 'active' : ''}`} onClick={() => { setActiveSection('history'); setError(''); setPastOwners([]); }}>
+                  Ownership History
+                </button>
+              </div>
+
+              {/* All Lands */}
+              {activeSection === 'show' && (
+                <div className="fade-in">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>All Registered Lands</h3>
+                    <button className="btn-gradient btn-sm-custom" onClick={fetchAllLands} disabled={isLoading}>
+                      {isLoading ? <><span className="spinner-dark" style={{ marginRight: 6 }}></span>Loading...</> : 'Fetch All Lands'}
                     </button>
-                  ) : (
-                    <>
-                      <p className="alert alert-warning mt-3">
-                        Your current account: {account}<br/>
-                        Admin address: {ADMIN_ADDRESS}
-                      </p>
-                      <p className="text-danger mt-2">
-                        {adminError || 'This account does not have administrator privileges.'}
-                      </p>
-                      <button
-                        onClick={connectWallet}
-                        className="btn btn-primary mt-3"
-                        aria-label="Connect Another Wallet"
-                      >
-                        Connect Different Account
-                      </button>
-                    </>
+                  </div>
+
+                  {error && <div className="alert-dark alert-error-dark">{error}</div>}
+
+                  {allLands.length > 0 && (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="table-dark-custom">
+                        <thead>
+                          <tr>
+                            <th>ID</th>
+                            <th>Plot #</th>
+                            <th>Area</th>
+                            <th>District</th>
+                            <th>City</th>
+                            <th>State</th>
+                            <th>Size (sq.yd)</th>
+                            <th>Owner</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allLands.map(land => (
+                            <tr key={land.id}>
+                              <td>{Number(land.id)}</td>
+                              <td>{land.plotNumber}</td>
+                              <td>{land.area}</td>
+                              <td>{land.district}</td>
+                              <td>{land.city}</td>
+                              <td>{land.state}</td>
+                              <td>{Number(land.areaSqYd).toLocaleString()}</td>
+                              <td><span className="address-badge">{config.shortenAddress(land.owner)}</span></td>
+                              <td><span className={`sale-badge ${land.isForSale ? 'for-sale' : 'not-for-sale'}`}>{land.isForSale ? 'For Sale' : 'Held'}</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {allLands.length === 0 && !error && !isLoading && (
+                    <div className="empty-state">
+                      <div className="empty-icon">&#128196;</div>
+                      <div className="empty-title">No Data Loaded</div>
+                      <p className="empty-desc">Click "Fetch All Lands" to load all registered properties from the blockchain.</p>
+                    </div>
                   )}
                 </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div className="alert alert-success mb-4">
-              <strong>Connected as Admin:</strong> {account}
-            </div>
-            
-            <div className="d-flex flex-wrap justify-content-center gap-3 mb-4">
-              <button className="btn btn-primary" onClick={() => toggleSection('show')}>
-                Show Lands
-              </button>
-              <button className="btn btn-primary" onClick={() => toggleSection('history')}>
-                Past Ownership Details
-              </button>
-            </div>
+              )}
 
-            {activeSection === 'show' && (
-              <div className="mb-4">
-                <h4>All Lands</h4>
-                <button 
-                  className="btn btn-primary mb-3" 
-                  onClick={fetchAllLands}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Loading...' : 'Fetch All Lands'}
-                </button>
-                {adminError && <div className="alert alert-danger mb-3">{adminError}</div>}
-                
-                {allLands.length > 0 ? (
-                  <div className="table-responsive">
-                    <table className="table table-striped table-bordered">
-                      <thead className="table-dark">
-                        <tr>
-                          <th>Land ID</th>
-                          <th>Plot Number</th>
-                          <th>Area</th>
-                          <th>District</th>
-                          <th>City</th>
-                          <th>State</th>
-                          <th>Area (sq. yd)</th>
-                          <th>Owner</th>
-                          <th>For Sale</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {allLands.map((land) => (
-                          <tr key={land.id}>
-                            <td>{land.id}</td>
-                            <td>{land.plotNumber}</td>
-                            <td>{land.area}</td>
-                            <td>{land.district}</td>
-                            <td>{land.city}</td>
-                            <td>{land.state}</td>
-                            <td>{land.areaSqYd}</td>
-                            <td title={land.owner}>{config.shortenAddress(land.owner)}</td>
-                            <td>{land.isForSale ? 'Yes' : 'No'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-center">
-                    {adminError || 'No lands fetched yet. Click "Fetch All Lands" to load.'}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {activeSection === 'history' && (
-              <div className="row justify-content-center">
-                <div className="col-md-6 mb-4">
-                  <h4>Past Ownership Details</h4>
-                  <div className="input-group mb-3">
-                    <input
-                      type="number"
-                      className="form-control"
-                      placeholder="Land ID"
-                      value={landIdForHistory}
-                      onChange={(e) => setLandIdForHistory(e.target.value)}
-                    />
-                    <button 
-                      className="btn btn-primary" 
-                      onClick={fetchPastOwners}
-                      disabled={isLoading}
-                    >
-                      {isLoading ? 'Loading...' : 'Submit'}
+              {/* Ownership History */}
+              {activeSection === 'history' && (
+                <div className="fade-in">
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '1rem' }}>Past Ownership Details</h3>
+                  <div style={{ display: 'flex', gap: '0.5rem', maxWidth: 400, marginBottom: '1.5rem' }}>
+                    <input className="form-input" type="number" placeholder="Enter Land ID" value={landIdForHistory} onChange={e => setLandIdForHistory(e.target.value)} style={{ background: 'var(--bg-input)' }} />
+                    <button className="btn-gradient btn-sm-custom" onClick={fetchPastOwners} disabled={isLoading} style={{ whiteSpace: 'nowrap' }}>
+                      {isLoading ? <span className="spinner-dark"></span> : 'Search'}
                     </button>
                   </div>
-                  
+
+                  {error && <div className="alert-dark alert-error-dark">{error}</div>}
+
                   {pastOwners.length > 0 && (
-                    <div className="mt-3">
-                      <h5>Ownership History for Land ID: {landIdForHistory}</h5>
-                      <div className="table-responsive">
-                        <table className="table table-striped table-bordered">
-                          <thead className="table-dark">
-                            <tr>
-                              <th>#</th>
-                              <th>Owner</th>
-                              <th>Date</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {pastOwners.map((owner, index) => (
-                              <tr key={index}>
-                                <td>{index + 1}</td>
-                                <td title={owner.owner}>{config.shortenAddress(owner.owner)}</td>
-                                <td>{new Date(owner.timestamp * 1000).toLocaleString()}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                    <div className="dark-card">
+                      <div className="card-header-custom">
+                        <span style={{ fontWeight: 600 }}>Ownership History for Land #{landIdForHistory}</span>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{pastOwners.length} record(s)</span>
+                      </div>
+                      <div className="card-body-custom">
+                        <div className="timeline">
+                          {pastOwners.map((owner, index) => (
+                            <div key={index} className="timeline-item">
+                              <div className="timeline-label">
+                                {index === 0 ? 'Original Registration' : `Transfer #${index}`}
+                              </div>
+                              <div className="timeline-address">{owner.owner}</div>
+                              <div className="timeline-date">{new Date(owner.timestamp * 1000).toLocaleString()}</div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
-              </div>
-            )}
-            
-            <ConfirmationDialog
-              show={showDialog}
-              title="Confirm Action"
-              message="Are you sure you want to perform this action?"
-              onConfirm={() => {
-                setShowDialog(false);
-                alert('Action confirmed!');
-              }}
-              onCancel={() => setShowDialog(false)}
-            />
-          </div>
-        )}
+              )}
+            </>
+          )}
+        </div>
       </div>
       <Footer />
     </div>

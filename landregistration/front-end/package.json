@@ -2,7 +2,7 @@
   "name": "front-end",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://rishi1508.github.io/Final-Year-Project",
+  "homepage": "https://rishi1508.github.io/land-registry-blockchain",
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@popperjs/core": "^2.11.8",

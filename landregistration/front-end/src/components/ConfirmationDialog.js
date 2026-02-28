@@ -1,36 +1,38 @@
 import React from 'react';
-import 'bootstrap/dist/css/bootstrap.min.css';
 
-const ConfirmationDialog = ({ 
-  show, 
-  title, 
-  message, 
-  onConfirm, 
+const ConfirmationDialog = ({
+  show,
+  title,
+  message,
+  onConfirm,
   onCancel,
-  confirmButtonText = "Confirm",
-  cancelButtonText = "Cancel"
+  confirmButtonText = 'Confirm',
+  cancelButtonText = 'Cancel'
 }) => {
   if (!show) return null;
-  
+
   return (
-    <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="modal-dialog modal-dialog-centered">
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">{title}</h5>
-            <button type="button" className="btn-close" onClick={onCancel}></button>
-          </div>
-          <div className="modal-body">
-            <p>{message}</p>
-          </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onCancel}>
-              {cancelButtonText}
-            </button>
-            <button type="button" className="btn btn-primary" onClick={onConfirm}>
-              {confirmButtonText}
-            </button>
-          </div>
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-dark" onClick={e => e.stopPropagation()}>
+        <div className="modal-header-dark">
+          <h3>{title}</h3>
+          <button
+            onClick={onCancel}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}
+          >
+            &times;
+          </button>
+        </div>
+        <div className="modal-body-dark">
+          <p style={{ whiteSpace: 'pre-line', margin: 0 }}>{message}</p>
+        </div>
+        <div className="modal-footer-dark">
+          <button className="btn-outline-custom btn-sm-custom" onClick={onCancel}>
+            {cancelButtonText}
+          </button>
+          <button className="btn-gradient btn-sm-custom" onClick={onConfirm}>
+            {confirmButtonText}
+          </button>
         </div>
       </div>
     </div>
